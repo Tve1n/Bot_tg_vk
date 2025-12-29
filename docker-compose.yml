@@ -1,0 +1,59 @@
+services:
+  db:
+    image: postgres:15
+    container_name: ege_db
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${EXTERNAL_DB_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  app:
+    build:
+      context: .
+    container_name: ege_api
+    command: sh -c "alembic upgrade head && uvicorn app.api:app --host 0.0.0.0 --port 8000"
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    env_file:
+      - .env
+    restart: always
+
+  bot_tg:
+    build:
+      context: .
+    container_name: ege_bot_tg
+    command: python -m app.bot_tg
+    volumes:
+      - .:/app
+    depends_on:
+      app:
+        condition: service_started
+    env_file:
+      - .env
+    restart: always
+
+  bot_vk:
+    build:
+      context: .
+    container_name: ege_bot_vk
+    command: python -m app.vk_bot
+    volumes:
+      - .:/app
+    depends_on:
+      app:
+        condition: service_started
+    env_file:
+      - .env
+    restart: always
+
+volumes:
+  postgres_data:
